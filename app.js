@@ -13,6 +13,9 @@ const DEMO = [
 ].map((d, i) => ({ id: "demo" + i, name: d[0], dev: "", cat: d[1], ver: d[2], size: d[3] * 1048576, dl: d[4], date: d[5], created: d[5], desc: d[6], url: "", direct: false, pkg: "exemple." + i, sha: "" }));
 
 const st = { view: "home", cat: "Tous", q: "", sort: "pop", favs: new Set(), theme: "auto", apps: [], mode: "loading" };
+/* Dans l'application Android (WebView), l'application native télécharge et lance l'installation. */
+const NATIVE = (() => { try { return !!(window.BeeNative && window.BeeNative.isNative()); } catch (e) { return false; } })();
+const fileName = (a) => (a.name + "-" + (a.ver || "apk")).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9.]+/g, "-").replace(/^-|-$/g, "") + ".apk";
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const nf = (n) => (n >= 1000 ? (n / 1000).toLocaleString("fr", { maximumFractionDigits: 1 }) + " k" : String(n));
@@ -154,7 +157,7 @@ function openSheet(id) {
     ${a.shots.length ? `<div class="shots" aria-label="Captures d'écran">${a.shots.map((u, i) => `<img src="${esc(u)}" alt="Capture ${i + 1} de ${esc(a.name)}" loading="lazy" decoding="async" onerror="this.remove()">`).join("")}</div>` : ""}
     ${a.desc ? `<p>${esc(a.desc)}</p>` : ""}
     ${a.sha ? `<p class="meta" style="overflow-wrap:anywhere">SHA-256 : <code>${esc(a.sha)}</code></p>` : ""}
-    <p class="meta">Android peut demander d'autoriser l'installation d'applications depuis ce navigateur. Acceptez uniquement pour cette installation.</p>
+    <p class="meta">${NATIVE ? "L'installation se lance toute seule après le téléchargement. Android peut demander d'autoriser Bee Store à installer des applications : c'est à faire une seule fois." : "Android peut demander d'autoriser l'installation d'applications depuis ce navigateur. Acceptez uniquement pour cette installation."}</p>
     <div class="actions"><button class="btn" data-get="${esc(a.id)}">Télécharger</button>
       <button class="btn soft" data-fav="${esc(a.id)}" id="favBtn">${fav ? "Retirer" : "Favori"}</button>
       <button class="btn soft" data-close="1" id="closeBtn">Fermer</button></div>
@@ -170,7 +173,9 @@ function toast(t) {
 function getApp(id) {
   const a = st.apps.find((x) => x.id === id); if (!a) return;
   if (st.mode === "demo" || !a.url) return toast("Exemple : pas de fichier réel pour " + a.name);
-  if (a.direct) { toast("Téléchargement de " + a.name + "…"); location.href = a.url; }
+  if (a.direct && NATIVE) { toast("Téléchargement de " + a.name + "…"); window.BeeNative.download(a.url, fileName(a), a.sha || ""); }
+  else if (a.direct) { toast("Téléchargement de " + a.name + "…"); location.href = a.url; }
+  else if (NATIVE) { toast("Ouverture de Telegram…"); location.href = a.url; }
   else { toast("Ouverture de Telegram…"); window.open(a.url, "_blank", "noopener"); }
 }
 function toggleFav(id) {
