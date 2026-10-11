@@ -15,70 +15,98 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="wrap">
-  <header class="top">
-    <div class="mark" aria-hidden="true">B</div>
-    <div class="brand">Bee Store</div>
-    <button class="iconbtn" id="goSearch" aria-label="Rechercher"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
-  </header>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.8"/><rect x="13" y="4" width="7" height="7" rx="1.8"/><rect x="4" y="13" width="7" height="7" rx="1.8"/><rect x="13" y="13" width="7" height="7" rx="1.8"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.6M12 18.4V21M3 12h2.6M18.4 12H21M5.6 5.6l1.9 1.9M16.5 16.5l1.9 1.9M18.4 5.6l-1.9 1.9M7.5 16.5l-1.9 1.9"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5 8 12l7 7"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M5 15V7a2 2 0 0 1 2-2h8"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/></symbol>
+</svg>
 
-  <main>
-    <section class="view" id="v-home"></section>
+<header class="bar" id="bar">
+  <div class="mark" aria-hidden="true">B</div>
+  <div class="brand" id="barTitle">Bee Store</div>
+  <button class="iconbtn" id="goSearch" aria-label="Rechercher"><svg class="ic"><use href="#i-search"/></svg></button>
+</header>
+<div class="ptr" id="ptr" aria-hidden="true"><svg class="ic"><use href="#i-refresh"/></svg></div>
 
-    <section class="view" id="v-catalog" hidden>
-      <div class="search">
-        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+<main id="main">
+  <section class="view" id="v-home"></section>
+
+  <section class="view" id="v-catalog" hidden>
+    <div class="finder">
+      <label class="search">
+        <svg class="ic"><use href="#i-search"/></svg>
         <input id="q" type="search" placeholder="Rechercher une application" autocomplete="off" aria-label="Rechercher">
-      </div>
+      </label>
       <div class="chips" id="chips" role="group" aria-label="Catégories"></div>
-      <div class="toolbar">
-        <span id="count"></span>
-        <label>Trier <select id="sort">
+    </div>
+    <div class="toolbar">
+      <span id="count"></span>
+      <label>Trier par
+        <select id="sort">
           <option value="pop">Populaires</option>
           <option value="new">Récents</option>
           <option value="az">A à Z</option>
           <option value="size">Plus légers</option>
-        </select></label>
-      </div>
-      <div class="list" id="results"></div>
-    </section>
+        </select>
+      </label>
+    </div>
+    <div class="grid" id="results"></div>
+  </section>
 
-    <section class="view" id="v-favs" hidden>
-      <div class="sec-head"><h2>Mes favoris</h2></div>
-      <div class="list" id="favList"></div>
-    </section>
+  <section class="view" id="v-favs" hidden>
+    <h1 class="page-title">Mes favoris</h1>
+    <div class="grid" id="favList"></div>
+  </section>
 
-    <section class="view" id="v-settings" hidden>
-      <div class="sec-head"><h2>Réglages</h2></div>
-      <div class="panel">
-        <b>Apparence</b>
-        <div class="seg" id="themeSeg">
-          <button data-theme-set="auto" aria-pressed="true">Auto</button>
-          <button data-theme-set="light" aria-pressed="false">Clair</button>
-          <button data-theme-set="dark" aria-pressed="false">Sombre</button>
-        </div>
+  <section class="view" id="v-settings" hidden>
+    <h1 class="page-title">Réglages</h1>
+    <div class="group">
+      <div class="row">
+        <div class="row-text"><b>Apparence</b><span class="note">Clair, sombre ou selon le téléphone</span></div>
       </div>
-      <div class="panel">
-        <b>Catalogue</b>
-        <p class="note" id="status">Chargement…</p>
-        <button class="btn soft" data-refresh>Actualiser</button>
+      <div class="seg" id="themeSeg">
+        <button data-theme-set="auto" aria-pressed="true">Auto</button>
+        <button data-theme-set="light" aria-pressed="false">Clair</button>
+        <button data-theme-set="dark" aria-pressed="false">Sombre</button>
       </div>
-      <div class="panel">
-        <b>À propos</b>
-        <p class="note">Bee Store propose des applications Android en téléchargement direct. Vérifiez l'empreinte SHA-256 affichée sur chaque fiche si vous voulez contrôler le fichier.</p>
+    </div>
+    <div class="group">
+      <div class="row">
+        <div class="row-text"><b>Catalogue</b><span class="note" id="status">Chargement…</span></div>
+        <button class="btn soft sm" data-refresh>Actualiser</button>
       </div>
-    </section>
-  </main>
-</div>
+      <div class="row">
+        <div class="row-text"><b>Vider la copie locale</b><span class="note">Efface le catalogue gardé pour le mode hors connexion</span></div>
+        <button class="btn soft sm" data-clear>Vider</button>
+      </div>
+    </div>
+    <div class="group">
+      <div class="row">
+        <div class="row-text"><b>Utilisation</b><span class="note" id="env">Navigateur</span></div>
+      </div>
+      <p class="note pad">Bee Store propose des applications Android en téléchargement direct. Chaque fiche affiche l'empreinte SHA-256 du fichier : comparez-la si vous voulez contrôler ce que vous installez.</p>
+    </div>
+  </section>
+</main>
 
-<nav class="nav" aria-label="Navigation principale"><div class="nav-in">
-  <button data-go="home" aria-current="page"><svg viewBox="0 0 24 24"><path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg>Accueil</button>
-  <button data-go="catalog"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>Catalogue</button>
-  <button data-go="favs"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>Favoris</button>
-  <button data-go="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8"/></svg>Réglages</button>
-</div></nav>
+<nav class="nav" aria-label="Navigation principale">
+  <div class="nav-in" id="navIn">
+    <span class="ind" id="ind" aria-hidden="true"></span>
+    <button data-tab="home" aria-current="page"><span class="ni"><svg class="ic"><use href="#i-home"/></svg></span><span class="nl">Accueil</span></button>
+    <button data-tab="catalog"><span class="ni"><svg class="ic"><use href="#i-grid"/></svg></span><span class="nl">Catalogue</span></button>
+    <button data-tab="favs"><span class="ni"><svg class="ic"><use href="#i-heart"/></svg></span><span class="nl">Favoris</span></button>
+    <button data-tab="settings"><span class="ni"><svg class="ic"><use href="#i-gear"/></svg></span><span class="nl">Réglages</span></button>
+  </div>
+</nav>
 
-<div id="layer"></div>
+<section class="detail" id="detail" aria-hidden="true"></section>
+<div id="lb" class="lb" hidden></div>
 <div id="toastBox" aria-live="polite"></div>
 <script src="app.js"></script>
 </body>
