@@ -1,0 +1,82 @@
+name: Construire l'application Android
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'beestore-android.zip'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Décompresser le projet
+        run: unzip -q beestore-android.zip -d proj
+
+      - name: Clé de signature (la même à chaque version)
+        id: key
+        run: |
+          # Priorité : secrets KS_BASE64 + KS_PASS du dépôt. Sinon une clé est créée une fois puis gardée en cache.
+          mkdir -p "$HOME/ks"
+          if [ -n "$KS_BASE64" ]; then
+            echo "$KS_BASE64" | base64 -d > "$HOME/ks/bee.jks"
+            echo "pass=$KS_PASS" >> "$GITHUB_OUTPUT"
+            echo "from=secret" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          KS_BASE64: ${{ secrets.KS_BASE64 }}
+          KS_PASS: ${{ secrets.KS_PASS }}
+
+      - name: Restaurer la clé en cache
+        if: steps.key.outputs.from != 'secret'
+        uses: actions/cache@v4
+        with:
+          path: ~/ks
+          key: beestore-keystore-v1
+
+      - name: Créer la clé si elle n'existe pas
+        run: |
+          if [ ! -f "$HOME/ks/bee.jks" ]; then
+            PASS=$(openssl rand -hex 16)
+            keytool -genkeypair -keystore "$HOME/ks/bee.jks" -storepass "$PASS" -keypass "$PASS" \
+              -alias bee -keyalg RSA -keysize 2048 -validity 12000 -dname "CN=Bee Store"
+            echo "$PASS" > "$HOME/ks/pass.txt"
+          fi
+          if [ -f "$HOME/ks/pass.txt" ]; then echo "KS_PASS_VALUE=$(cat "$HOME/ks/pass.txt")" >> "$GITHUB_ENV"; else echo "KS_PASS_VALUE=${{ steps.key.outputs.pass }}" >> "$GITHUB_ENV"; fi
+
+      - name: Compiler
+        working-directory: proj
+        env:
+          KS_PASS: ${{ env.KS_PASS_VALUE }}
+          KS_ALIAS: bee
+        run: |
+          export KS_FILE="$HOME/ks/bee.jks"
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          REPO="${{ github.event.repository.name }}"
+          gradle --no-daemon assembleRelease \
+            -PSITE_URL="https://$OWNER.github.io/$REPO/" \
+            -PVERSION_CODE="${{ github.run_number }}" \
+            -PVERSION_NAME="1.${{ github.run_number }}"
+
+      - name: Publier l'APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp proj/app/build/outputs/apk/release/app-release.apk BeeStore.apk
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest BeeStore.apk --title "Bee Store" --notes "Application Android Bee Store (build ${{ github.run_number }})"
+          
