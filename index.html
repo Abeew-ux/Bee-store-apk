@@ -24,6 +24,8 @@
   <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5 8 12l7 7"/></symbol>
   <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></symbol>
   <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M5 15V7a2 2 0 0 1 2-2h8"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.6"/><path d="M5 20c.8-3.8 3.6-5.6 7-5.6s6.2 1.8 7 5.6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
   <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/></symbol>
 </svg>
 
@@ -66,6 +68,7 @@
 
   <section class="view" id="v-settings" hidden>
     <h1 class="page-title">Réglages</h1>
+    <div class="group acct" id="acct"></div>
     <div class="group">
       <div class="row">
         <div class="row-text"><b>Apparence</b><span class="note">Clair, sombre ou selon le téléphone</span></div>
@@ -106,6 +109,7 @@
 </nav>
 
 <section class="detail" id="detail" aria-hidden="true"></section>
+<section class="detail page" id="page" aria-hidden="true"></section>
 <div id="lb" class="lb" hidden></div>
 <div id="toastBox" aria-live="polite"></div>
 <script src="app.js"></script>
