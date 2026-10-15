@@ -80,7 +80,7 @@ main { padding: 8px var(--gap) 0; max-width: 760px; margin: 0 auto; }
 }
 .btn:active { transform: scale(0.97); }
 .btn.soft { background: var(--accent-soft); color: var(--accent); }
-.btn.sm { min-height: 38px; padding: 0 16px; font-size: 14px; border-radius: 12px; }
+.btn.sm { white-space: nowrap; min-height: 38px; padding: 0 16px; font-size: 14px; border-radius: 12px; }
 
 /* ---------- accueil ---------- */
 .banner { background: var(--accent-soft); border-radius: 14px; padding: 10px 14px; font-size: 14px; color: var(--muted); }
@@ -315,3 +315,9 @@ a.btn { display: flex; align-items: center; justify-content: center; }
 .d-install .btn:first-child { flex: 1 1 auto; min-width: 0; white-space: nowrap; }
 .d-install .btn.soft { flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 50px; padding: 0 18px; border-radius: 999px; font-size: 15px; background: var(--accent-soft); color: var(--accent); }
 .d-install .btn.soft .ic { width: 20px; height: 20px; }
+
+/* ---------- mise à jour de l'application ---------- */
+.upd { display: flex; align-items: center; gap: 12px; padding: 12px 14px 12px 16px; border-radius: 20px; color: #fff; background: linear-gradient(135deg, #6a4bff, #3a6bff); }
+.upd .txt { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.upd .txt span { font-size: 13px; opacity: 0.9; }
+.upd .btn { flex: none; background: #fff; color: #17142b; }

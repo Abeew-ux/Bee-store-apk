@@ -48,7 +48,7 @@ const norm = (a) => ({
   id: a.id, name: a.name, dev: a.developer || "", cat: a.category || "Outils", ver: a.version_name || "", size: a.size_bytes || 0,
   dl: a.downloads || 0, date: a.updated_at || a.created_at || "", created: a.created_at || "", desc: a.description || "", url: a.download_url, direct: !!a.direct,
   tg: a.telegram_url, pkg: a.package, sha: a.sha256 || "", icon: a.icon_url || "", shots: Array.isArray(a.screenshots) ? a.screenshots : [],
-  kind: a.kind === "game" ? "game" : "app", plat: a.platform || "",
+  kind: a.kind === "game" ? "game" : "app", plat: a.platform || "", vc: Number(a.version_code) || 0,
   links: (Array.isArray(a.links) ? a.links : []).filter((l) => l && /^https:\/\//i.test(l.url || "")).slice(0, 5).map((l) => ({ label: String(l.label || ""), url: l.url }))
 });
 const GAME_CAT = "Jeux émulateur";
@@ -401,6 +401,13 @@ function adsInit() {
   }, 5000);
 }
 
+/* mise à jour de Bee Store lui-même : l'APK du store est publié dans le catalogue (package app.beestore) */
+const SELF_PKG = "app.beestore";
+const nat = (f) => { try { return NATIVE && window.BeeNative[f] ? window.BeeNative[f]() : null; } catch (e) { return null; } };
+const installedCode = () => Number(nat("versionCode")) || 0;
+const selfUpdate = () => { const n = installedCode(); if (!n) return null; const a = st.apps.find((x) => x.pkg === SELF_PKG && x.kind !== "game" && x.direct && x.url); return a && a.vc > n ? a : null; };
+const updHtml = () => { const u = selfUpdate(); return u ? `<div class="upd"><div class="txt"><b>Mise à jour disponible</b><span>Bee Store ${esc(u.ver || "")} · ${sizeTxt(u.size)}</span></div><button class="btn sm" data-get="${esc(u.id)}">Mettre à jour</button></div>` : ""; };
+
 const bannerHtml = () =>
   st.mode === "demo" ? `<div class="banner"><b>Mode démo.</b> Le catalogue réel est injoignable pour le moment : ces applications sont des exemples.</div>`
   : st.mode === "cache" ? `<div class="banner"><b>Hors connexion.</b> Dernier catalogue enregistré sur cet appareil.</div>` : "";
@@ -417,7 +424,7 @@ function renderHome() {
   const games = st.apps.filter((a) => a.kind === "game").sort((a, b) => String(b.date).localeCompare(String(a.date)));
   const cats = [...new Set(st.apps.map((a) => a.cat))];
   const head = (t, attrs) => `<div class="sec-head"><h2>${t}</h2>${attrs ? `<button class="link" ${attrs}>Tout voir</button>` : ""}</div>`;
-  el.innerHTML = `${bannerHtml()}${adsHtml()}
+  el.innerHTML = `${bannerHtml()}${updHtml()}${adsHtml()}
     <div class="chips home-chips" role="group" aria-label="Catégories">${["Tous", ...cats].map((c) => `<button class="chip" data-cat="${esc(c)}">${esc(c)}</button>`).join("")}</div>
     <div>${head("Nouveautés", 'data-cat="Tous" data-sort="new"')}<div class="rail">${fresh.slice(0, 10).map(mini).join("")}</div></div>
     ${byDl.length ? `<div>${head("Applications populaires", 'data-cat="Tous" data-sort="pop"')}<div class="lrows">${byDl.slice(0, 5).map(card).join("")}</div></div>` : ""}
@@ -456,6 +463,11 @@ function renderSettings() {
   $("#env").textContent = NATIVE ? "Application Bee Store : le téléchargement et l'installation se font ici." : "Navigateur : Android peut demander d'autoriser l'installation depuis ce navigateur.";
   const s = $("#status");
   renderAccount();
+  const vb = $("#verBox"), vn = nat("versionName"), u = selfUpdate();
+  if (vb) {
+    vb.hidden = !installedCode();
+    vb.innerHTML = installedCode() ? `<div class="row"><div class="row-text"><b>Version de l'application</b><span class="note">${esc(vn || "")}${u ? " · la version " + esc(u.ver || "") + " est disponible" : " · à jour"}</span></div>${u ? `<button class="btn soft sm" data-get="${esc(u.id)}">Mettre à jour</button>` : ""}</div>` : "";
+  }
   s.textContent = st.mode === "live" ? `Connecté · ${st.apps.length} application${st.apps.length > 1 ? "s" : ""}` : st.mode === "cache" ? "Hors connexion · copie locale" : st.mode === "demo" ? "Mode démo" : "Chargement…";
 }
 function renderAll() { renderHome(); renderChips(); renderCatalog(); renderFavs(); renderSettings(); }
@@ -602,7 +614,7 @@ function getApp(id) {
 /* partage : lien de la fiche (ouvre le store sur cette application) */
 function shareApp(id) {
   const a = st.apps.find((x) => x.id === id); if (!a) return;
-  const url = location.href.split("#")[0] + "#/app/" + encodeURIComponent(id);
+  const url = location.href.split("#")[0].replace(/[^/]*$/, "") + "s/" + encodeURIComponent(id) + "/"; // page d'aperçu (photo, nom) qui renvoie vers la fiche
   const text = a.kind === "game" ? `${a.name} : jeu ${a.plat || "pour émulateur"} sur Bee Store` : `Télécharge ${a.name} sur Bee Store`;
   buzz(8);
   if (NATIVE && window.BeeNative.share) { try { window.BeeNative.share(a.name, text + "\n" + url); return; } catch (e) { /* ancien pont : on essaie la suite */ } }

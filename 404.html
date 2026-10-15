@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bee Store</title>
+<meta name="theme-color" content="#5b3df5">
+<script>
+  // Page introuvable : si c'est un lien de partage /s/<id>/, on ouvre la fiche dans le store.
+  var base = location.pathname.split("/s/")[0].replace(/\/$/, "") + "/";
+  var m = location.pathname.match(/\/s\/([0-9a-f-]{36})\/?$/);
+  location.replace(base + (m ? "#/app/" + m[1] : ""));
+</script>
+<style>body{font:16px system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;margin:0;background:#f2f1ff;color:#15122e}a{color:#5b3df5}</style>
+</head>
+<body><p><a href="./">Ouvrir Bee Store</a></p></body>
+</html>
