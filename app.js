@@ -346,38 +346,60 @@ async function recheckMe(btn) {
 const favBtn = (id) => `<button class="fav" data-fav="${esc(id)}" aria-pressed="${st.favs.has(id)}" aria-label="Favori">${ico("heart")}</button>`;
 const hrefOf = (id) => "#/app/" + encodeURIComponent(id);
 
-const card = (a) => `<article class="card" style="--h:${hue(a.name)}">
+const subOf = (a) => a.kind === "game" ? "Jeu pour émulateur" : `${nf(a.dl)} téléchargement${a.dl > 1 ? "s" : ""}`;
+
+/* ligne de liste façon Play Store : icône, nom, infos, bouton */
+const card = (a) => `<article class="lrow" style="--h:${hue(a.name)}">
   <a class="hit" href="${hrefOf(a.id)}">
     <div class="tile">${tileInner(a)}</div>
-    <div class="name">${esc(a.name)}</div>
-    <div class="meta">${esc(metaOf(a))}</div>
-    ${isNew(a) ? '<span class="badge">Nouveau</span>' : a.ver ? `<div class="meta">v${esc(a.ver)}</div>` : ""}
+    <div class="txt">
+      <div class="name">${esc(a.name)}</div>
+      <div class="meta">${esc(metaOf(a))}</div>
+      <div class="meta">${esc(subOf(a))}</div>
+    </div>
   </a>
-  <div class="foot"><button class="get" data-get="${esc(a.id)}">${a.kind === "game" ? "Voir" : "Obtenir"}</button>${favBtn(a.id)}</div></article>`;
+  <div class="act"><button class="get" data-get="${esc(a.id)}">${a.kind === "game" ? "Voir" : "Installer"}</button>${favBtn(a.id)}</div></article>`;
 
+/* petite icône d'une rangée horizontale */
 const mini = (a) => `<a class="mini" href="${hrefOf(a.id)}" style="--h:${hue(a.name)}">
   <div class="tile">${tileInner(a)}</div>
   <div class="name">${esc(a.name)}</div>
-  <div class="meta">${esc(metaOf(a))}</div>
-  ${isNew(a) ? '<span class="badge">Nouveau</span>' : ""}</a>`;
+  <div class="meta">${esc(a.kind === "game" ? a.plat || "Émulateur" : sizeTxt(a.size))}</div></a>`;
 
-const hero = (a) => `<article class="hero" data-open="${esc(a.id)}" style="--h:${hue(a.name)}">
-  <div class="tile">${tileInner(a)}</div>
-  <h2>${esc(a.name)}</h2>
-  <p>${esc(a.desc || metaOf(a))}</p>
-  <div class="row"><button class="btn" data-get="${esc(a.id)}">${a.kind === "game" ? "Voir le jeu" : "Télécharger"}</button>${a.kind === "game" ? `<span class="size">${esc(a.plat)}</span>` : `<span class="size">${sizeTxt(a.size)}</span>`}</div></article>`;
-
-/* annonce : gros bloc de l'accueil, avec image de fond si l'annonce en a une */
+/* annonce : une diapositive du bandeau de l'accueil, avec image de fond si l'annonce en a une */
 const annHero = (a) => {
   const target = a.app && st.apps.some((x) => x.id === a.app) ? a.app : "";
   const bg = a.img ? ` style="--h:${hue(a.title)};background-image:linear-gradient(180deg,rgb(8 6 24/.1),rgb(8 6 24/.78)),url('${esc(a.img)}'),linear-gradient(150deg,hsl(${hue(a.title)} 85% 56%),hsl(${hue(a.title) - 30} 80% 34%))"` : ` style="--h:${hue(a.title)}"`;
-  return `<article class="hero ann${a.img ? " has-img" : ""}"${target ? ` data-open="${esc(target)}"` : ""}${bg}>
+  return `<article class="ad${a.img ? " has-img" : ""}"${target ? ` data-open="${esc(target)}"` : ""}${bg}>
     <span class="tag">Annonce</span>
     <h2>${esc(a.title)}</h2>
     ${a.body ? `<p>${esc(a.body)}</p>` : ""}
-    ${target ? `<div class="row"><button class="btn" data-open="${esc(target)}">Voir l'application</button></div>`
-      : a.link ? `<div class="row"><a class="btn" data-ext href="${esc(a.link)}" target="_blank" rel="noopener">En savoir plus</a></div>` : ""}</article>`;
+    ${target ? `<button class="btn" data-open="${esc(target)}">Voir l'application</button>`
+      : a.link ? `<a class="btn" data-ext href="${esc(a.link)}" target="_blank" rel="noopener">En savoir plus</a>` : ""}</article>`;
 };
+const adsHtml = () => !st.anns.length ? "" : `<div class="ads" id="ads"><div class="ads-track">${st.anns.map(annHero).join("")}</div>${st.anns.length > 1 ? `<div class="ads-dots" aria-hidden="true">${st.anns.map((_, i) => `<i${i ? "" : ' class="on"'}></i>`).join("")}</div>` : ""}</div>`;
+
+/* défilement automatique du bandeau : une diapositive toutes les 5 s, en pause 7 s après un toucher */
+const adsState = { timer: 0, hold: 0 };
+function adsInit() {
+  clearInterval(adsState.timer); adsState.timer = 0;
+  const box = $("#ads"); if (!box) return;
+  const tr = box.querySelector(".ads-track"), n = tr.children.length;
+  if (n < 2) return;
+  const dots = [...box.querySelectorAll(".ads-dots i")];
+  const cur = () => Math.min(n - 1, Math.max(0, Math.round(tr.scrollLeft / (tr.clientWidth || 1))));
+  tr.addEventListener("scroll", () => { const k = cur(); dots.forEach((d, j) => d.classList.toggle("on", j === k)); }, { passive: true });
+  const hold = () => { adsState.hold = Date.now() + 7000; };
+  ["touchstart", "pointerdown", "wheel"].forEach((ev) => tr.addEventListener(ev, hold, { passive: true }));
+  const calm = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  adsState.timer = setInterval(() => {
+    const b = $("#ads");
+    if (!b || !b.offsetParent || document.hidden || Date.now() < adsState.hold) return;
+    if ($("#detail").classList.contains("open") || $("#page").classList.contains("open") || !$("#lb").hidden) return;
+    const t = b.querySelector(".ads-track");
+    t.scrollTo({ left: ((cur() + 1) % n) * t.clientWidth, behavior: calm ? "auto" : "smooth" });
+  }, 5000);
+}
 
 const bannerHtml = () =>
   st.mode === "demo" ? `<div class="banner"><b>Mode démo.</b> Le catalogue réel est injoignable pour le moment : ces applications sont des exemples.</div>`
@@ -385,21 +407,22 @@ const bannerHtml = () =>
 
 function renderHome() {
   const el = $("#v-home");
-  if (st.mode === "loading") { el.innerHTML = `<div class="skeleton" style="height:190px"></div><div class="skeleton"></div><div class="skeleton"></div>`; return; }
+  if (st.mode === "loading") { el.innerHTML = `<div class="skeleton" style="height:220px"></div><div class="skeleton"></div><div class="skeleton"></div>`; adsInit(); return; }
   if (!st.apps.length) {
-    el.innerHTML = (st.anns.length ? `<div class="feat">${st.anns.map(annHero).join("")}</div>` : "") + `<div class="empty"><b>Le catalogue est vide.</b><span>Envoyez un fichier .apk au bot Telegram pour publier la première application.</span></div>`;
-    return;
+    el.innerHTML = adsHtml() + `<div class="empty"><b>Le catalogue est vide.</b><span>Envoyez un fichier .apk au bot Telegram pour publier la première application.</span></div>`;
+    return adsInit();
   }
-  const byDl = st.apps.slice().sort((a, b) => b.dl - a.dl || String(b.date).localeCompare(String(a.date)));
+  const byDl = st.apps.filter((a) => a.kind !== "game").sort((a, b) => b.dl - a.dl || String(b.date).localeCompare(String(a.date)));
   const fresh = st.apps.slice().sort((a, b) => String(b.date).localeCompare(String(a.date)));
-  const feat = [...new Map([byDl[0], fresh[0], byDl[1], fresh[1]].filter(Boolean).map((a) => [a.id, a])).values()].slice(0, st.anns.length ? 3 : 4);
+  const games = st.apps.filter((a) => a.kind === "game").sort((a, b) => String(b.date).localeCompare(String(a.date)));
   const cats = [...new Set(st.apps.map((a) => a.cat))];
-  el.innerHTML = `${bannerHtml()}
-    <div class="feat">${st.anns.map(annHero).join("")}${feat.map(hero).join("")}</div>
-    ${byDl.length > 1 ? `<div><div class="sec-head"><h2>Populaires</h2><button class="link" data-tab="catalog">Tout voir</button></div><div class="rail">${byDl.slice(0, 8).map(mini).join("")}</div></div>` : ""}
-    <div><div class="sec-head"><h2>Nouveautés</h2></div><div class="rail">${fresh.slice(0, 8).map(mini).join("")}</div></div>
-    <div><div class="sec-head"><h2>Catégories</h2></div>
-      <div class="cats">${cats.map((c) => { const n = st.apps.filter((a) => a.cat === c).length; return `<button class="cat" data-cat="${esc(c)}" style="--h:${hue(c)}"><b>${esc(c)}</b><span>${n} app${n > 1 ? "s" : ""}</span></button>`; }).join("")}</div></div>`;
+  const head = (t, attrs) => `<div class="sec-head"><h2>${t}</h2>${attrs ? `<button class="link" ${attrs}>Tout voir</button>` : ""}</div>`;
+  el.innerHTML = `${bannerHtml()}${adsHtml()}
+    <div class="chips home-chips" role="group" aria-label="Catégories">${["Tous", ...cats].map((c) => `<button class="chip" data-cat="${esc(c)}">${esc(c)}</button>`).join("")}</div>
+    <div>${head("Nouveautés", 'data-cat="Tous" data-sort="new"')}<div class="rail">${fresh.slice(0, 10).map(mini).join("")}</div></div>
+    ${byDl.length ? `<div>${head("Applications populaires", 'data-cat="Tous" data-sort="pop"')}<div class="lrows">${byDl.slice(0, 5).map(card).join("")}</div></div>` : ""}
+    ${games.length ? `<div>${head(GAME_CAT, `data-cat="${esc(GAME_CAT)}"`)}<div class="rail">${games.slice(0, 10).map(mini).join("")}</div></div>` : ""}`;
+  adsInit();
 }
 
 function filtered() {
@@ -459,16 +482,22 @@ const detailHtml = (a) => {
     ? [["Plateforme", esc(a.plat || "n.c.")], ["Catégorie", esc(a.cat)], ["Mis à jour", dateTxt(a.date)]]
     : [["Version", a.ver ? esc(a.ver) : "n.c."], ["Taille", sizeTxt(a.size)], ["Téléchargements", nf(a.dl)], ["Mis à jour", dateTxt(a.date)], ["Paquet", esc(a.pkg || "n.c.")]];
   const linkRow = (l, i) => `<a class="li dl-link" data-ext href="${esc(l.url)}" target="_blank" rel="noopener"><div class="row-text"><b>${esc(l.label || "Lien " + (i + 1))}</b><span class="note">${esc(hostOf(l.url))}</span></div><span class="pill">Ouvrir</span></a>`;
+  const install = isG
+    ? (a.links.length ? `<a class="btn" data-ext href="${esc(a.links[0].url)}" target="_blank" rel="noopener">${ico("down")}Ouvrir le lien</a>` : `<button class="btn" disabled>Aucun lien disponible</button>`)
+    : `<button class="btn" data-get="${esc(a.id)}">${ico("down")}${a.direct ? "Installer" : "Obtenir sur Telegram"}</button>`;
   return `<div class="d-top" id="dTop">
-      <button class="iconbtn" data-back aria-label="Retour">${ico("back")}</button>
+      <button class="iconbtn flat" data-back aria-label="Retour">${ico("back")}</button>
       <span class="sp d-title">${esc(a.name)}</span>
+      <button class="iconbtn flat" data-share="${esc(a.id)}" aria-label="Partager">${ico("share")}</button>
       <button class="fav" data-fav="${esc(a.id)}" aria-pressed="${fav}" aria-label="Favori">${ico("heart")}</button>
     </div>
-    <div class="d-hero" style="--h:${hue(a.name)}">
-      <div class="tile lg">${tileInner(a)}</div>
-      <h1>${esc(a.name)}</h1>
-      <div class="by">${esc(a.dev || a.cat)}</div>
-      <div class="tags"><span class="tag">${esc(a.cat)}</span>${isNew(a) ? '<span class="tag">Nouveau</span>' : ""}</div>
+    <div class="d-head" style="--h:${hue(a.name)}">
+      <div class="tile">${tileInner(a)}</div>
+      <div class="d-id">
+        <h1>${esc(a.name)}</h1>
+        <div class="by">${esc(a.dev || a.cat)}</div>
+        <div class="sub"><span>${esc(a.cat)}</span>${isNew(a) ? '<span class="badge">Nouveau</span>' : ""}</div>
+      </div>
     </div>
     <div class="d-body">
       ${isG ? `<div class="facts">
@@ -476,22 +505,20 @@ const detailHtml = (a) => {
         <div><b>${a.links.length}</b><span>Lien${a.links.length > 1 ? "s" : ""}</span></div>
         <div><b>${esc(dateTxt(a.date))}</b><span>Mis à jour</span></div>
       </div>` : `<div class="facts">
-        <div><b>${a.ver ? esc(a.ver) : "n.c."}</b><span>Version</span></div>
-        <div><b>${sizeTxt(a.size)}</b><span>Taille</span></div>
         <div><b>${nf(a.dl)}</b><span>Téléchargements</span></div>
+        <div><b>${sizeTxt(a.size)}</b><span>Taille</span></div>
+        <div><b>${a.ver ? esc(a.ver) : "n.c."}</b><span>Version</span></div>
       </div>`}
-      ${isG ? `<div><h2>Télécharger</h2>${a.links.length ? `<div class="list">${a.links.map(linkRow).join("")}</div>` : `<p>Aucun lien pour le moment.</p>`}</div>` : ""}
+      <div class="d-install">${install}<button class="btn soft" data-share="${esc(a.id)}">${ico("share")}Partager</button></div>
       ${a.shots.length ? `<div><h2>Captures d'écran</h2><div class="shots">${a.shots.map((u, i) => `<img src="${esc(u)}" data-shot="${i}" alt="Capture ${i + 1} de ${esc(a.name)}" loading="lazy" decoding="async" onerror="this.remove()">`).join("")}</div></div>` : ""}
-      ${a.desc ? `<div><h2>À propos</h2><p>${esc(a.desc)}</p></div>` : ""}
+      ${isG ? `<div><h2>Liens de téléchargement</h2>${a.links.length ? `<div class="list">${a.links.map(linkRow).join("")}</div>` : `<p>Aucun lien pour le moment.</p>`}</div>` : ""}
+      ${a.desc ? `<div><h2>${isG ? "À propos de ce jeu" : "À propos de cette application"}</h2><p>${esc(a.desc)}</p></div>` : ""}
       <div><h2>Informations</h2><div class="info">
         ${rows.map((r) => `<div><span>${r[0]}</span><span>${r[1]}</span></div>`).join("")}
         ${a.sha ? `<div><span>SHA-256</span><span><code>${esc(a.sha)}</code><br><button class="copy" data-copy="${esc(a.sha)}">${ico("copy")}Copier</button></span></div>` : ""}
       </div></div>
       <p class="d-note">${isG ? `Ce jeu se télécharge sur un site externe, pas sur Bee Store. Il faut un émulateur ${esc(a.plat || "compatible")} pour le lancer : cherche-le dans la catégorie Émulateurs si elle existe. Ne télécharge que des fichiers dont tu as le droit de te servir.` : NATIVE ? "L'installation se lance toute seule après le téléchargement. Android peut demander d'autoriser Bee Store à installer des applications : c'est à faire une seule fois." : "Android peut demander d'autoriser l'installation d'applications depuis ce navigateur. Acceptez uniquement pour cette installation."}</p>
-    </div>
-    <div class="d-actions">${isG
-      ? (a.links.length ? `<a class="btn" data-ext href="${esc(a.links[0].url)}" target="_blank" rel="noopener">${ico("down")}Ouvrir le lien de téléchargement</a>` : `<button class="btn" disabled>Aucun lien disponible</button>`)
-      : `<button class="btn" data-get="${esc(a.id)}">${ico("down")}${a.direct ? "Télécharger" : "Obtenir sur Telegram"} · ${sizeTxt(a.size)}</button>`}</div>`;
+    </div>`;
 };
 
 function openDetail(id) {
@@ -572,6 +599,16 @@ function getApp(id) {
   else if (NATIVE) { toast("Ouverture de Telegram…"); location.href = a.url; }
   else { toast("Ouverture de Telegram…"); window.open(a.url, "_blank", "noopener"); }
 }
+/* partage : lien de la fiche (ouvre le store sur cette application) */
+function shareApp(id) {
+  const a = st.apps.find((x) => x.id === id); if (!a) return;
+  const url = location.href.split("#")[0] + "#/app/" + encodeURIComponent(id);
+  const text = a.kind === "game" ? `${a.name} : jeu ${a.plat || "pour émulateur"} sur Bee Store` : `Télécharge ${a.name} sur Bee Store`;
+  buzz(8);
+  if (NATIVE && window.BeeNative.share) { try { window.BeeNative.share(a.name, text + "\n" + url); return; } catch (e) { /* ancien pont : on essaie la suite */ } }
+  if (navigator.share) { navigator.share({ title: a.name, text, url }).catch((e) => { if (e && e.name !== "AbortError") copyText(url, "Lien copié"); }); return; }
+  copyText(url, "Lien copié");
+}
 function toggleFav(id) {
   if (st.favs.has(id)) st.favs.delete(id); else st.favs.add(id);
   saveFavs();
@@ -607,6 +644,7 @@ document.addEventListener("click", (e) => {
   if (t.closest("#lb")) return closeLb();
   let el;
   if ((el = t.closest("[data-get]"))) return getApp(el.dataset.get);
+  if ((el = t.closest("[data-share]"))) return shareApp(el.dataset.share);
   if ((el = t.closest("[data-fav]"))) return toggleFav(el.dataset.fav);
   if ((el = t.closest("[data-copy]"))) return copyText(el.dataset.copy);
   if ((el = t.closest("[data-copy-num]"))) { e.preventDefault(); return copyText(el.dataset.copyNum, "Numéro copié"); }
@@ -622,7 +660,7 @@ document.addEventListener("click", (e) => {
   if ((el = t.closest("a[href^='#/app/']"))) { st.steps++; return; } // le lien change le hash tout seul
   if ((el = t.closest("[data-open]"))) return openApp(el.dataset.open);
   if ((el = t.closest("[data-plat]"))) { st.plat = el.dataset.plat; renderChips(); return renderCatalog(); }
-  if ((el = t.closest("[data-cat]"))) { st.cat = el.dataset.cat; st.plat = ""; renderChips(); renderCatalog(); return goTab("catalog"); }
+  if ((el = t.closest("[data-cat]"))) { st.cat = el.dataset.cat; st.plat = ""; if (el.dataset.sort) { st.sort = el.dataset.sort; $("#sort").value = st.sort; } renderChips(); renderCatalog(); return goTab("catalog"); }
   if ((el = t.closest("[data-tab]"))) {
     if (el.dataset.tab === st.tab) { window.scrollTo({ top: 0, behavior: "smooth" }); return; }
     return goTab(el.dataset.tab);
