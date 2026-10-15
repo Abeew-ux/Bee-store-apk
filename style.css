@@ -326,3 +326,10 @@ a.btn { display: flex; align-items: center; justify-content: center; }
 .hero.ann h2 { font-size: 28px; text-shadow: 0 2px 14px rgb(0 0 0 / 0.35); }
 .hero.ann p { -webkit-line-clamp: 3; text-shadow: 0 1px 8px rgb(0 0 0 / 0.4); }
 .hero.ann::after { display: none; }
+
+/* ---------- jeux pour émulateur ---------- */
+.chip.sm { height: 32px; font-size: 13px; padding: 0 13px; }
+#chips2 .chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.d-body .list .dl-link { display: flex; }
+.dl-link:active { opacity: 0.7; }
+.d-actions .btn:disabled { opacity: 0.55; }

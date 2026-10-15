@@ -14,7 +14,7 @@ const DEMO = [
 
 const TABS = ["home", "catalog", "favs", "settings"];
 const TITLES = { home: APP_NAME, catalog: "Catalogue", favs: "Favoris", settings: "Réglages" };
-const st = { tab: "home", cat: "Tous", q: "", sort: "pop", favs: new Set(), theme: "auto", apps: [], anns: [], mode: "loading", steps: 0, scroll: {}, detailKey: "" };
+const st = { tab: "home", cat: "Tous", q: "", sort: "pop", favs: new Set(), theme: "auto", apps: [], anns: [], plat: "", mode: "loading", steps: 0, scroll: {}, detailKey: "" };
 /* Dans l'application Android (WebView), l'application native télécharge et lance l'installation. */
 const NATIVE = (() => { try { return !!(window.BeeNative && window.BeeNative.isNative()); } catch (e) { return false; } })();
 const fileName = (a) => (a.name + "-" + (a.ver || "apk")).normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9.]+/g, "-").replace(/^-|-$/g, "") + ".apk";
@@ -47,8 +47,13 @@ function applyTheme() {
 const norm = (a) => ({
   id: a.id, name: a.name, dev: a.developer || "", cat: a.category || "Outils", ver: a.version_name || "", size: a.size_bytes || 0,
   dl: a.downloads || 0, date: a.updated_at || a.created_at || "", created: a.created_at || "", desc: a.description || "", url: a.download_url, direct: !!a.direct,
-  tg: a.telegram_url, pkg: a.package, sha: a.sha256 || "", icon: a.icon_url || "", shots: Array.isArray(a.screenshots) ? a.screenshots : []
+  tg: a.telegram_url, pkg: a.package, sha: a.sha256 || "", icon: a.icon_url || "", shots: Array.isArray(a.screenshots) ? a.screenshots : [],
+  kind: a.kind === "game" ? "game" : "app", plat: a.platform || "",
+  links: (Array.isArray(a.links) ? a.links : []).filter((l) => l && /^https:\/\//i.test(l.url || "")).slice(0, 5).map((l) => ({ label: String(l.label || ""), url: l.url }))
 });
+const GAME_CAT = "Jeux émulateur";
+const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch (e) { return "site externe"; } };
+const metaOf = (a) => a.kind === "game" ? `${a.plat || "Émulateur"} · lien externe` : `${a.cat} · ${sizeTxt(a.size)}`;
 const normAnn = (a) => ({ id: a.id, title: a.title || "", body: a.body || "", link: /^https:\/\//i.test(a.link || "") ? a.link : "", app: a.app_id || "", img: a.image_url || "" });
 /* icône : image si l'application en a une, sinon initiales (l'image masquée si elle ne charge pas) */
 const tileInner = (a) => a.icon
@@ -345,22 +350,22 @@ const card = (a) => `<article class="card" style="--h:${hue(a.name)}">
   <a class="hit" href="${hrefOf(a.id)}">
     <div class="tile">${tileInner(a)}</div>
     <div class="name">${esc(a.name)}</div>
-    <div class="meta">${esc(a.cat)} · ${sizeTxt(a.size)}</div>
+    <div class="meta">${esc(metaOf(a))}</div>
     ${isNew(a) ? '<span class="badge">Nouveau</span>' : a.ver ? `<div class="meta">v${esc(a.ver)}</div>` : ""}
   </a>
-  <div class="foot"><button class="get" data-get="${esc(a.id)}">Obtenir</button>${favBtn(a.id)}</div></article>`;
+  <div class="foot"><button class="get" data-get="${esc(a.id)}">${a.kind === "game" ? "Voir" : "Obtenir"}</button>${favBtn(a.id)}</div></article>`;
 
 const mini = (a) => `<a class="mini" href="${hrefOf(a.id)}" style="--h:${hue(a.name)}">
   <div class="tile">${tileInner(a)}</div>
   <div class="name">${esc(a.name)}</div>
-  <div class="meta">${esc(a.cat)} · ${sizeTxt(a.size)}</div>
+  <div class="meta">${esc(metaOf(a))}</div>
   ${isNew(a) ? '<span class="badge">Nouveau</span>' : ""}</a>`;
 
 const hero = (a) => `<article class="hero" data-open="${esc(a.id)}" style="--h:${hue(a.name)}">
   <div class="tile">${tileInner(a)}</div>
   <h2>${esc(a.name)}</h2>
-  <p>${esc(a.desc || a.cat + " · " + sizeTxt(a.size))}</p>
-  <div class="row"><button class="btn" data-get="${esc(a.id)}">Télécharger</button><span class="size">${sizeTxt(a.size)}</span></div></article>`;
+  <p>${esc(a.desc || metaOf(a))}</p>
+  <div class="row"><button class="btn" data-get="${esc(a.id)}">${a.kind === "game" ? "Voir le jeu" : "Télécharger"}</button>${a.kind === "game" ? `<span class="size">${esc(a.plat)}</span>` : `<span class="size">${sizeTxt(a.size)}</span>`}</div></article>`;
 
 /* annonce : gros bloc de l'accueil, avec image de fond si l'annonce en a une */
 const annHero = (a) => {
@@ -399,7 +404,7 @@ function renderHome() {
 
 function filtered() {
   const q = st.q.trim().toLowerCase();
-  const l = st.apps.filter((a) => (st.cat === "Tous" || a.cat === st.cat) && (!q || (a.name + " " + a.dev + " " + a.cat + " " + a.desc + " " + a.pkg).toLowerCase().includes(q)));
+  const l = st.apps.filter((a) => (st.cat === "Tous" || a.cat === st.cat) && (st.cat !== GAME_CAT || !st.plat || a.plat === st.plat) && (!q || (a.name + " " + a.dev + " " + a.cat + " " + a.plat + " " + a.desc + " " + a.pkg).toLowerCase().includes(q)));
   const s = { pop: (a, b) => b.dl - a.dl, new: (a, b) => String(b.date).localeCompare(String(a.date)), az: (a, b) => a.name.localeCompare(b.name, "fr"), size: (a, b) => a.size - b.size }[st.sort];
   return l.sort(s);
 }
@@ -407,6 +412,12 @@ function renderChips() {
   const cats = [...new Set(st.apps.map((a) => a.cat))];
   if (st.cat !== "Tous" && !cats.includes(st.cat)) st.cat = "Tous";
   $("#chips").innerHTML = ["Tous", ...cats].map((c) => `<button class="chip" data-cat="${esc(c)}" aria-pressed="${c === st.cat}">${esc(c)}</button>`).join("");
+  // Jeux pour émulateur : une deuxième rangée filtre par plateforme (PSP, PS2…).
+  const plats = st.cat === GAME_CAT ? [...new Set(st.apps.filter((a) => a.kind === "game" && a.plat).map((a) => a.plat))] : [];
+  if (st.plat && !plats.includes(st.plat)) st.plat = "";
+  const c2 = $("#chips2");
+  c2.hidden = plats.length < 2;
+  c2.innerHTML = plats.length < 2 ? "" : ["", ...plats].map((p) => `<button class="chip sm" data-plat="${esc(p)}" aria-pressed="${p === (st.plat || "")}">${esc(p || "Toutes")}</button>`).join("");
 }
 function renderCatalog() {
   const l = filtered();
@@ -443,9 +454,11 @@ function setInert(on) { ["main", "bar"].forEach((id) => { const e = document.get
 
 const detailHtml = (a) => {
   const fav = st.favs.has(a.id);
-  const rows = [
-    ["Version", a.ver ? esc(a.ver) : "n.c."], ["Taille", sizeTxt(a.size)], ["Téléchargements", nf(a.dl)], ["Mis à jour", dateTxt(a.date)], ["Paquet", esc(a.pkg || "n.c.")]
-  ];
+  const isG = a.kind === "game";
+  const rows = isG
+    ? [["Plateforme", esc(a.plat || "n.c.")], ["Catégorie", esc(a.cat)], ["Mis à jour", dateTxt(a.date)]]
+    : [["Version", a.ver ? esc(a.ver) : "n.c."], ["Taille", sizeTxt(a.size)], ["Téléchargements", nf(a.dl)], ["Mis à jour", dateTxt(a.date)], ["Paquet", esc(a.pkg || "n.c.")]];
+  const linkRow = (l, i) => `<a class="li dl-link" data-ext href="${esc(l.url)}" target="_blank" rel="noopener"><div class="row-text"><b>${esc(l.label || "Lien " + (i + 1))}</b><span class="note">${esc(hostOf(l.url))}</span></div><span class="pill">Ouvrir</span></a>`;
   return `<div class="d-top" id="dTop">
       <button class="iconbtn" data-back aria-label="Retour">${ico("back")}</button>
       <span class="sp d-title">${esc(a.name)}</span>
@@ -458,20 +471,27 @@ const detailHtml = (a) => {
       <div class="tags"><span class="tag">${esc(a.cat)}</span>${isNew(a) ? '<span class="tag">Nouveau</span>' : ""}</div>
     </div>
     <div class="d-body">
-      <div class="facts">
+      ${isG ? `<div class="facts">
+        <div><b>${esc(a.plat || "n.c.")}</b><span>Émulateur</span></div>
+        <div><b>${a.links.length}</b><span>Lien${a.links.length > 1 ? "s" : ""}</span></div>
+        <div><b>${esc(dateTxt(a.date))}</b><span>Mis à jour</span></div>
+      </div>` : `<div class="facts">
         <div><b>${a.ver ? esc(a.ver) : "n.c."}</b><span>Version</span></div>
         <div><b>${sizeTxt(a.size)}</b><span>Taille</span></div>
         <div><b>${nf(a.dl)}</b><span>Téléchargements</span></div>
-      </div>
+      </div>`}
+      ${isG ? `<div><h2>Télécharger</h2>${a.links.length ? `<div class="list">${a.links.map(linkRow).join("")}</div>` : `<p>Aucun lien pour le moment.</p>`}</div>` : ""}
       ${a.shots.length ? `<div><h2>Captures d'écran</h2><div class="shots">${a.shots.map((u, i) => `<img src="${esc(u)}" data-shot="${i}" alt="Capture ${i + 1} de ${esc(a.name)}" loading="lazy" decoding="async" onerror="this.remove()">`).join("")}</div></div>` : ""}
       ${a.desc ? `<div><h2>À propos</h2><p>${esc(a.desc)}</p></div>` : ""}
       <div><h2>Informations</h2><div class="info">
         ${rows.map((r) => `<div><span>${r[0]}</span><span>${r[1]}</span></div>`).join("")}
         ${a.sha ? `<div><span>SHA-256</span><span><code>${esc(a.sha)}</code><br><button class="copy" data-copy="${esc(a.sha)}">${ico("copy")}Copier</button></span></div>` : ""}
       </div></div>
-      <p class="d-note">${NATIVE ? "L'installation se lance toute seule après le téléchargement. Android peut demander d'autoriser Bee Store à installer des applications : c'est à faire une seule fois." : "Android peut demander d'autoriser l'installation d'applications depuis ce navigateur. Acceptez uniquement pour cette installation."}</p>
+      <p class="d-note">${isG ? `Ce jeu se télécharge sur un site externe, pas sur Bee Store. Il faut un émulateur ${esc(a.plat || "compatible")} pour le lancer : cherche-le dans la catégorie Émulateurs si elle existe. Ne télécharge que des fichiers dont tu as le droit de te servir.` : NATIVE ? "L'installation se lance toute seule après le téléchargement. Android peut demander d'autoriser Bee Store à installer des applications : c'est à faire une seule fois." : "Android peut demander d'autoriser l'installation d'applications depuis ce navigateur. Acceptez uniquement pour cette installation."}</p>
     </div>
-    <div class="d-actions"><button class="btn" data-get="${esc(a.id)}">${ico("down")}${a.direct ? "Télécharger" : "Obtenir sur Telegram"} · ${sizeTxt(a.size)}</button></div>`;
+    <div class="d-actions">${isG
+      ? (a.links.length ? `<a class="btn" data-ext href="${esc(a.links[0].url)}" target="_blank" rel="noopener">${ico("down")}Ouvrir le lien de téléchargement</a>` : `<button class="btn" disabled>Aucun lien disponible</button>`)
+      : `<button class="btn" data-get="${esc(a.id)}">${ico("down")}${a.direct ? "Télécharger" : "Obtenir sur Telegram"} · ${sizeTxt(a.size)}</button>`}</div>`;
 };
 
 function openDetail(id) {
@@ -544,6 +564,7 @@ function toast(t) {
 }
 function getApp(id) {
   const a = st.apps.find((x) => x.id === id); if (!a) return;
+  if (a.kind === "game") return openApp(id); // un jeu s'ouvre sur sa fiche : les liens de téléchargement y sont
   if (st.mode === "demo" || !a.url) return toast("Exemple : pas de fichier réel pour " + a.name);
   buzz(12);
   if (a.direct && NATIVE) { toast("Téléchargement de " + a.name + "…"); window.BeeNative.download(a.url, fileName(a), a.sha || ""); }
@@ -600,7 +621,8 @@ document.addEventListener("click", (e) => {
   if (t.closest("[data-back]")) return goBack();
   if ((el = t.closest("a[href^='#/app/']"))) { st.steps++; return; } // le lien change le hash tout seul
   if ((el = t.closest("[data-open]"))) return openApp(el.dataset.open);
-  if ((el = t.closest("[data-cat]"))) { st.cat = el.dataset.cat; renderChips(); renderCatalog(); return goTab("catalog"); }
+  if ((el = t.closest("[data-plat]"))) { st.plat = el.dataset.plat; renderChips(); return renderCatalog(); }
+  if ((el = t.closest("[data-cat]"))) { st.cat = el.dataset.cat; st.plat = ""; renderChips(); renderCatalog(); return goTab("catalog"); }
   if ((el = t.closest("[data-tab]"))) {
     if (el.dataset.tab === st.tab) { window.scrollTo({ top: 0, behavior: "smooth" }); return; }
     return goTab(el.dataset.tab);
