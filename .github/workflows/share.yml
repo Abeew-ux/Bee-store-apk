@@ -1,0 +1,92 @@
+name: Pages de partage (aperçu des liens)
+
+# Crée une petite page par application / jeu avec son nom, sa description et sa photo,
+# pour que le lien partagé affiche un aperçu dans WhatsApp, Telegram, etc.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/30 * * * *'
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: share-pages
+  cancel-in-progress: false
+
+jobs:
+  share:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Générer les pages
+        env:
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+        run: |
+          node - <<'JS'
+          const fs = require("fs");
+          const API = "https://cetbspgxsqbaousqrara.supabase.co/functions/v1/bee-store-api";
+          const SITE = `https://${process.env.OWNER.toLowerCase()}.github.io/${process.env.REPO}/`;
+          const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+          (async () => {
+            const r = await fetch(API + "/apps");
+            if (!r.ok) throw new Error("API " + r.status);
+            const { apps } = await r.json();
+            if (!Array.isArray(apps)) throw new Error("réponse inattendue");
+            fs.rmSync("s", { recursive: true, force: true });
+            let n = 0;
+            for (const a of apps) {
+              if (!/^[0-9a-f-]{36}$/.test(a.id || "")) continue;
+              const game = a.kind === "game";
+              const title = `${a.name} sur Bee Store`;
+              const desc = String(a.description || "").replace(/\s+/g, " ").trim().slice(0, 180)
+                || (game ? `Jeu pour émulateur ${a.platform || ""}`.trim() : `Télécharge ${a.name} sur Bee Store.`);
+              const img = a.icon_url || (a.screenshots && a.screenshots[0]) || SITE + "icons/icon-512.png";
+              const page = SITE + "s/" + a.id + "/";
+              const open = SITE + "#/app/" + a.id;
+              fs.mkdirSync("s/" + a.id, { recursive: true });
+              fs.writeFileSync("s/" + a.id + "/index.html", `<!doctype html>
+          <html lang="fr">
+          <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>${esc(title)}</title>
+          <meta name="description" content="${esc(desc)}">
+          <meta property="og:type" content="website">
+          <meta property="og:site_name" content="Bee Store">
+          <meta property="og:title" content="${esc(title)}">
+          <meta property="og:description" content="${esc(desc)}">
+          <meta property="og:image" content="${esc(img)}">
+          <meta property="og:url" content="${esc(page)}">
+          <meta name="twitter:card" content="summary">
+          <meta name="twitter:title" content="${esc(title)}">
+          <meta name="twitter:description" content="${esc(desc)}">
+          <meta name="twitter:image" content="${esc(img)}">
+          <meta name="theme-color" content="#5b3df5">
+          <meta http-equiv="refresh" content="0;url=${esc(open)}">
+          <script>location.replace(${JSON.stringify(open)});</script>
+          </head>
+          <body><p><a href="${esc(open)}">Ouvrir ${esc(a.name)} dans Bee Store</a></p></body>
+          </html>
+          `);
+              n++;
+            }
+            console.log(n + " pages");
+          })().catch((e) => { console.error(e); process.exit(1); });
+          JS
+
+      - name: Publier les changements
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "bee-store-bot"
+          git config user.email "bee-store-bot@users.noreply.github.com"
+          git add -A s
+          if git diff --cached --quiet; then echo "Rien de nouveau."; exit 0; fi
+          git commit -m "Pages de partage"
+          git push
+          gh api -X POST "repos/${{ github.repository }}/pages/builds" || true
+          
