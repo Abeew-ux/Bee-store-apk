@@ -317,3 +317,11 @@ a.btn { display: flex; align-items: center; justify-content: center; }
 .upd .txt { flex: 1; min-width: 0; display: grid; gap: 1px; }
 .upd .txt span { font-size: 13px; opacity: 0.9; }
 .upd .btn { flex: none; background: #fff; color: #17142b; }
+
+/* demande avant la vidéo de téléchargement */
+.askbox { position: fixed; inset: 0; z-index: 90; display: grid; place-items: end center; background: rgb(8 6 28 / 0.55); padding: var(--gap); padding-bottom: calc(var(--gap) + env(safe-area-inset-bottom)); }
+.ask { width: min(100%, 420px); background: var(--surface); color: var(--ink); border-radius: 24px; padding: 20px; display: grid; gap: 8px; box-shadow: 0 24px 48px -16px rgb(0 0 0 / 0.6); }
+.ask h3 { font-family: var(--font-display); font-size: 19px; line-height: 1.25; }
+.ask p { color: var(--muted); font-size: 15px; }
+.ask .row { display: flex; gap: 10px; margin-top: 8px; }
+.ask .row .btn { flex: 1 1 0; white-space: nowrap; }
