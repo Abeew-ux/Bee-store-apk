@@ -565,7 +565,8 @@ function closeDetail() {
   closeDetail.t = setTimeout(() => { if (!d.classList.contains("open")) { d.innerHTML = ""; st.detailKey = ""; } }, 400);
 }
 
-function route() {
+function route() { routeMain(); adBanner(); }
+function routeMain() {
   const parts = location.hash.replace(/^#\/?/, "").split("/");
   closeLb();
   if (parts[0] === "app" && parts[1]) {
@@ -606,10 +607,41 @@ function getApp(id) {
   if (a.kind === "game") return openApp(id); // un jeu s'ouvre sur sa fiche : les liens de téléchargement y sont
   if (st.mode === "demo" || !a.url) return toast("Exemple : pas de fichier réel pour " + a.name);
   buzz(12);
-  if (a.direct && NATIVE) { toast("Téléchargement de " + a.name + "…"); window.BeeNative.download(a.url, fileName(a), a.sha || ""); }
+  if (a.direct && NATIVE) adGate(a, () => { toast("Téléchargement de " + a.name + "…"); window.BeeNative.download(a.url, fileName(a), a.sha || ""); });
   else if (a.direct) { toast("Téléchargement de " + a.name + "…"); location.href = a.url; }
   else if (NATIVE) { toast("Ouverture de Telegram…"); location.href = a.url; }
   else { toast("Ouverture de Telegram…"); window.open(a.url, "_blank", "noopener"); }
+}
+/* ---------- publicités (AdMob, dans l'application seulement) ---------- */
+// Bannière : seulement sur l'écran d'accueil, jamais sur une fiche, la connexion ou les autres écrans.
+function adBanner() {
+  if (!NATIVE || !window.BeeNative.banner) return;
+  const p = location.hash.replace(/^#\/?/, "").split("/")[0];
+  const home = st.tab === "home" && p !== "app" && p !== "login" && p !== "dev";
+  try { window.BeeNative.banner(home); } catch (e) { /* ancien pont */ }
+}
+// Vidéo avant un téléchargement : proposée si une pub est prête, jamais pour la mise à jour de Bee Store, jamais bloquante en cas d'échec.
+function adGate(a, go) {
+  const B = window.BeeNative;
+  let ready = false;
+  try { ready = !!(B.rewardedReady && B.showRewarded && a.pkg !== SELF_PKG && B.rewardedReady()); } catch (e) { ready = false; }
+  if (!ready) return go();
+  const box = $("#adAsk");
+  box.innerHTML = `<div class="ask" role="dialog" aria-modal="true" aria-labelledby="askT"><h3 id="askT">Une courte vidéo avant de télécharger</h3><p>Regarde la vidéo jusqu'à la fin : ${esc(a.name)} se télécharge ensuite. Ça aide Bee Store à rester gratuit.</p><div class="row"><button class="btn soft" data-ask="no">Annuler</button><button class="btn" data-ask="yes">Regarder la vidéo</button></div></div>`;
+  box.hidden = false;
+  const close = () => { box.hidden = true; box.innerHTML = ""; };
+  box.onclick = (e) => {
+    const b = e.target.closest("[data-ask]");
+    if (!b && e.target !== box) return;
+    close();
+    if (!b || b.dataset.ask !== "yes") return;
+    window.__adResult = (r) => {
+      window.__adResult = null;
+      if (r === "closed") toast("Regarde la vidéo jusqu'à la fin pour télécharger.");
+      else go(); // "rewarded", ou "error" : on ne bloque jamais le téléchargement à cause d'une pub
+    };
+    try { B.showRewarded(); } catch (e) { window.__adResult("error"); }
+  };
 }
 /* partage : lien de la fiche (ouvre le store sur cette application) */
 function shareApp(id) {
