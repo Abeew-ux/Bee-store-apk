@@ -621,11 +621,26 @@ function adBanner() {
   try { window.BeeNative.banner(home); } catch (e) { /* ancien pont */ }
 }
 // Vidéo avant un téléchargement : proposée si une pub est prête, jamais pour la mise à jour de Bee Store, jamais bloquante en cas d'échec.
+// Si la vidéo n'est pas encore chargée, on lui laisse jusqu'à 4 secondes ; après un échec, on n'attend plus pendant 60 secondes.
 function adGate(a, go) {
   const B = window.BeeNative;
-  let ready = false;
-  try { ready = !!(B.rewardedReady && B.showRewarded && a.pkg !== SELF_PKG && B.rewardedReady()); } catch (e) { ready = false; }
-  if (!ready) return go();
+  const isReady = () => { try { return !!B.rewardedReady(); } catch (e) { return false; } };
+  if (!(B.rewardedReady && B.showRewarded) || a.pkg === SELF_PKG) return go();
+  if (isReady()) return adAsk(a, go);
+  if (adGate.busy) return;
+  if (Date.now() - (adGate.miss || 0) < 60000) return go();
+  adGate.busy = true;
+  toast("Préparation du téléchargement…");
+  const t0 = Date.now();
+  const tick = setInterval(() => {
+    const ok = isReady();
+    if (!ok && Date.now() - t0 < 4000) return;
+    clearInterval(tick); adGate.busy = false;
+    if (ok) adAsk(a, go); else { adGate.miss = Date.now(); go(); }
+  }, 300);
+}
+function adAsk(a, go) {
+  const B = window.BeeNative;
   const box = $("#adAsk");
   box.innerHTML = `<div class="ask" role="dialog" aria-modal="true" aria-labelledby="askT"><h3 id="askT">Une courte vidéo avant de télécharger</h3><p>Regarde la vidéo jusqu'à la fin : ${esc(a.name)} se télécharge ensuite. Ça aide Bee Store à rester gratuit.</p><div class="row"><button class="btn soft" data-ask="no">Annuler</button><button class="btn" data-ask="yes">Regarder la vidéo</button></div></div>`;
   box.hidden = false;
